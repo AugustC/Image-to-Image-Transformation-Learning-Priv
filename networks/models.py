@@ -3,6 +3,7 @@ from keras.models import Model, load_model
 from keras.regularizers import l2
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import RMSprop, Adam, SGD
+from keras.layers.normalization import BatchNormalization
 
 def FCN32(d=0.2):
     inp = Input(shape=(None,None,3))
@@ -54,15 +55,21 @@ def UNet(n):
 
     return model
 
-def SConvNet(window_size):
+def SConvNet(window_size, batch_norm=False):
     inp = Input(shape=(None,None,3))
     n = window_size//2
 
     conv = Conv2D(8, (3,3), activation='relu', padding='valid')(inp)
     for i in range(1, n):
-        conv = Conv2D(2**(i//3 + 3), (3,3), activation='relu', padding='valid')(conv)
+        conv = Conv2D(2**(i//3 + 3), (3,3), padding='valid')(conv)
+        if batch_norm:
+            conv = BatchNormalization(axis=3)(conv)
+        conv = Activation('relu')(conv)
     conv = Conv2D(2, (1,1), activation='softmax')(conv)
 
     model = Model(inputs=inp, outputs=conv)
 
     return model
+
+def Discriminator(window_size):
+    pass

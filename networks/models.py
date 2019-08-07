@@ -4,6 +4,8 @@ from keras.regularizers import l2
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import RMSprop, Adam, SGD
 from keras.layers.normalization import BatchNormalization
+from keras.layers.advanced_activations import LeakyReLU
+import numpy as np
 
 def FCN32(d=0.2):
     inp = Input(shape=(None,None,3))
@@ -20,7 +22,7 @@ def FCN32(d=0.2):
     output = UpSampling2D(size=(4,4))(p2)
     output = Conv2D(2,(1,1), activation='softmax')(output)
 
-    model = Model(inputs=inp, outputs=output)
+    model = Model(inputs=inp, outputs=output, name='FCN')
 
     return model
 
@@ -51,7 +53,7 @@ def UNet(n):
 
     last_conv = Conv2D(2, (1,1), activation='softmax', data_format='channels_last', padding='same')(convUp)
 
-    model = Model(inputs=inp, outputs=last_conv)
+    model = Model(inputs=inp, outputs=last_conv, name='UNet')
 
     return model
 
@@ -67,9 +69,45 @@ def SConvNet(window_size, batch_norm=False):
         conv = Activation('relu')(conv)
     conv = Conv2D(2, (1,1), activation='softmax')(conv)
 
-    model = Model(inputs=inp, outputs=conv)
+    model = Model(inputs=inp, outputs=conv, name='SConvNet')
 
     return model
 
-def Discriminator(window_size):
-    pass
+def Discriminator(l_window, s_window):
+    o_img = Input(shape=l_window)
+    g_img = Input(shape=s_window)
+
+    crop = l_window[0] - s_window[0]
+    o_img = Cropping2D(crop//2)(o_img)
+
+    inp = Concatenate(axis=-1)([o_img, g_img])
+    n_conv = np.log2(window_size)
+
+    conv = Conv2D(8, (3,3), strides=2, padding='same')(inp)
+    conv = LeakyReLU(alpha=0.2)(conv)
+    for i in range(1,n_conv):
+        conv = Conv2D(2**(i+3), (3,3), strides=2, padding='same')(conv)
+        conv = BatchNormalization(axis=3)(conv)
+        conv = LeakyReLU(alpha=0.2)(conv)
+
+    out = Dense(2, activation='softmax')(conv)
+
+    D = Model(inputs=[o_img, g_img], outputs=out, name='D')
+
+    return D
+
+def DCGAN(l_window, s_window, G=None, D=None):
+    if not G or not D:
+        raise Exception('generator and discriminator must be defined')
+
+    inp_g = Input(shape=l_window)
+
+    gen_img = G(inp_g)
+    crop = l_window[0] - s_window[0]
+    inp_d = Cropping2D(crop//2)(inp_g)
+
+    d_loss = D([inp_d, gen_img])
+
+    DCGAN = Model(input=inp_g, output=[gen_img, d_loss], name='DCGAN')
+
+    return DCGAN

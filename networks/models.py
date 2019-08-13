@@ -5,6 +5,7 @@ from keras.callbacks import ModelCheckpoint
 from keras.optimizers import RMSprop, Adam, SGD
 from keras.layers.normalization import BatchNormalization
 from keras.layers.advanced_activations import LeakyReLU
+from tensorflow.keras import backend as K
 import numpy as np
 
 def FCN32(d=0.2):
@@ -74,23 +75,23 @@ def SConvNet(window_size, batch_norm=False):
     return model
 
 def Discriminator(l_window, s_window):
-    o_img = Input(shape=l_window)
-    g_img = Input(shape=s_window)
+    o_img = Input(shape=(None, None, 3), name='original_img')
+    g_img = Input(shape=(None, None, 2), name='generate_img')
 
-    crop = l_window[0] - s_window[0]
-    o_img = Cropping2D(crop//2)(o_img)
+    crop = l_window - s_window
+    crop_img = Cropping2D(crop//2, name='crop')(o_img)
 
-    inp = Concatenate(axis=-1)([o_img, g_img])
-    n_conv = np.log2(window_size)
+    inp = Concatenate(axis=-1, name='concat')([crop_img, g_img])
+    n_conv = int(np.log2(s_window))
 
-    conv = Conv2D(8, (3,3), strides=2, padding='same')(inp)
-    conv = LeakyReLU(alpha=0.2)(conv)
+    conv = Conv2D(32, (3,3), strides=2, padding='same', name='conv0')(inp)
+    conv = LeakyReLU(alpha=0.2, name='relu0')(conv)
     for i in range(1,n_conv):
-        conv = Conv2D(2**(i+3), (3,3), strides=2, padding='same')(conv)
-        conv = BatchNormalization(axis=3)(conv)
-        conv = LeakyReLU(alpha=0.2)(conv)
+        conv = Conv2D(2**(i+5), (3,3), strides=2, padding='same', name='conv'+str(i))(conv)
+        conv = BatchNormalization(axis=3, name='bn'+str(i))(conv)
+        conv = LeakyReLU(alpha=0.2, name='relu'+str(i))(conv)
 
-    out = Dense(2, activation='softmax')(conv)
+    out = Dense(2, activation='softmax', name='output')(conv)
 
     D = Model(inputs=[o_img, g_img], outputs=out, name='D')
 
@@ -100,14 +101,16 @@ def DCGAN(l_window, s_window, G=None, D=None):
     if not G or not D:
         raise Exception('generator and discriminator must be defined')
 
-    inp_g = Input(shape=l_window)
+    inp_g = Input(shape=(None, None, 3))
 
     gen_img = G(inp_g)
-    crop = l_window[0] - s_window[0]
-    inp_d = Cropping2D(crop//2)(inp_g)
+#    lmbd = Lambda(lambda x : x[:,:,:,1] > 0.5)(gen_img)
+#    lmbd = Lambda(lambda x : K.cast(x, dtype='float32'))(lmbd)
+#    lmbd = Reshape((s_window, s_window, 1))(lmbd)
+    #predict = np.argmax(gen_img, axis=3)
 
-    d_loss = D([inp_d, gen_img])
+    d_out = D([inp_g, gen_img])
 
-    DCGAN = Model(input=inp_g, output=[gen_img, d_loss], name='DCGAN')
+    DCGAN = Model(inputs=inp_g, output=[gen_img, d_out], name='DCGAN')
 
     return DCGAN

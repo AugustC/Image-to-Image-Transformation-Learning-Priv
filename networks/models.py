@@ -58,7 +58,7 @@ def UNet(n):
 
     return model
 
-def SConvNet(window_size, batch_norm=False):
+def SConvNet(window_size, batch_norm=False, model_name='SConvNet'):
     inp = Input(shape=(None,None,3))
     n = window_size//2
 
@@ -70,7 +70,7 @@ def SConvNet(window_size, batch_norm=False):
         conv = Activation('relu')(conv)
     conv = Conv2D(2, (1,1), activation='softmax')(conv)
 
-    model = Model(inputs=inp, outputs=conv, name='SConvNet')
+    model = Model(inputs=inp, outputs=conv, name=name)
 
     return model
 

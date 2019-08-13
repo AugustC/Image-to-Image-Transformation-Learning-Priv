@@ -60,16 +60,16 @@ def plot_comparison(modelA, modelB, data_lists, paths, window=-1):
     fig = plt.figure(figsize=(20,30))
     for i in range(n):
         ax = fig.add_subplot(n,3,i*3+1)
-        ax.imshow(imgs[i])
-        ax.set_title("Original Image")
+        ax.imshow(gts[i], cmap='gray')
+        ax.set_title("Original Ground Truth")
 
         ax = fig.add_subplot(n,3,i*3+2)
         ax.imshow(predA[i], cmap='gray')
-        ax.set_title('Predicted model A')
+        ax.set_title('Prediction from '+modelA.name)
 
         ax = fig.add_subplot(n,3,i*3+3)
         ax.imshow(predB[i], cmap='gray')
-        ax.set_title('Predicted model B')
+        ax.set_title('Prediction from '+modelB.name)
     plt.show()
 
     return np.asarray(predA), np.asarray(predB)

@@ -70,7 +70,7 @@ def SConvNet(window_size, batch_norm=False, model_name='SConvNet'):
         conv = Activation('relu')(conv)
     conv = Conv2D(2, (1,1), activation='softmax')(conv)
 
-    model = Model(inputs=inp, outputs=conv, name=name)
+    model = Model(inputs=inp, outputs=conv, name=model_name)
 
     return model
 

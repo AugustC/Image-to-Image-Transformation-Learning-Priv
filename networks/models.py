@@ -58,13 +58,13 @@ def UNet(n):
 
     return model
 
-def SConvNet(window_size, batch_norm=False, model_name='SConvNet'):
-    inp = Input(shape=(None,None,3))
+def SConvNet(window_size, batch_norm=False, model_name='SConvNet', reg_l2=0, n_channels=3):
+    inp = Input(shape=(None,None,n_channels))
     n = window_size//2
 
     conv = Conv2D(8, (3,3), activation='relu', padding='valid')(inp)
     for i in range(1, n):
-        conv = Conv2D(2**(i//3 + 3), (3,3), padding='valid')(conv)
+        conv = Conv2D(2**(i//3 + 3), (3,3), padding='valid', kernel_regularizer=None)(conv)
         if batch_norm:
             conv = BatchNormalization(axis=3)(conv)
         conv = Activation('relu')(conv)
@@ -74,8 +74,8 @@ def SConvNet(window_size, batch_norm=False, model_name='SConvNet'):
 
     return model
 
-def Discriminator(l_window, s_window):
-    o_img = Input(shape=(None, None, 3), name='original_img')
+def Discriminator(l_window, s_window, n_channels=3):
+    o_img = Input(shape=(None, None, n_channels), name='original_img')
     g_img = Input(shape=(None, None, 2), name='generate_img')
 
     crop = l_window - s_window
@@ -84,31 +84,28 @@ def Discriminator(l_window, s_window):
     inp = Concatenate(axis=-1, name='concat')([crop_img, g_img])
     n_conv = int(np.log2(s_window))
 
-    conv = Conv2D(32, (3,3), strides=2, padding='same', name='conv0')(inp)
+    conv = Conv2D(8, (3,3), strides=2, padding='same', name='conv0', kernel_regularizer=l2(0.01))(inp)
     conv = LeakyReLU(alpha=0.2, name='relu0')(conv)
+    conv = Dropout(0.4)(conv)
     for i in range(1,n_conv):
-        conv = Conv2D(2**(i+5), (3,3), strides=2, padding='same', name='conv'+str(i))(conv)
+        conv = Conv2D(2**(i+3), (3,3), strides=2, padding='same', name='conv'+str(i), kernel_regularizer=l2(0.01))(conv)
+        conv = Dropout(0.4)(conv)
         conv = BatchNormalization(axis=3, name='bn'+str(i))(conv)
         conv = LeakyReLU(alpha=0.2, name='relu'+str(i))(conv)
 
-    out = Dense(2, activation='softmax', name='output')(conv)
+    out = Dense(1, activation='sigmoid', name='output')(conv)
 
     D = Model(inputs=[o_img, g_img], outputs=out, name='D')
 
     return D
 
-def DCGAN(l_window, s_window, G=None, D=None):
+def DCGAN(l_window, s_window, G=None, D=None, n_channels=3):
     if not G or not D:
         raise Exception('generator and discriminator must be defined')
 
-    inp_g = Input(shape=(None, None, 3))
+    inp_g = Input(shape=(None, None, n_channels))
 
     gen_img = G(inp_g)
-#    lmbd = Lambda(lambda x : x[:,:,:,1] > 0.5)(gen_img)
-#    lmbd = Lambda(lambda x : K.cast(x, dtype='float32'))(lmbd)
-#    lmbd = Reshape((s_window, s_window, 1))(lmbd)
-    #predict = np.argmax(gen_img, axis=3)
-
     d_out = D([inp_g, gen_img])
 
     DCGAN = Model(inputs=inp_g, output=[gen_img, d_out], name='DCGAN')

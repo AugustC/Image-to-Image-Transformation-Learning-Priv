@@ -4,7 +4,7 @@ import keras
 
 class DataGen(keras.utils.Sequence):
 
-    def __init__(self, data_lists=None, paths=None, window=-1, batch_size=256, n_outputs=2, shuffle=True, mode='RGB', load_all=True, imsize=[-1,-1]):
+    def __init__(self, data_lists=None, paths=None, window=-1, batch_size=256, n_outputs=2, shuffle=True, mode='RGB', load_all=True, imsize=[-1,-1], sampling=-1.0):
         # data_lists <- dict. List of names of the images, ground truth and (optional) masks.
         # paths <- dict. Paths to images, ground truth and (optional) masks
         # window <- int. Window size
@@ -19,6 +19,7 @@ class DataGen(keras.utils.Sequence):
         self.batch_size = batch_size
         self.n_outputs = n_outputs
         self.imsize = imsize
+        self.sampling = sampling
         self.mask_id = self.get_mask_id(self.mask_list)
         self.mode = mode
         self.load_all = load_all
@@ -131,6 +132,10 @@ class DataGen(keras.utils.Sequence):
                     H, W, *C = image.shape
                     ids = [[h,w,i] for h in range(H) for w in range(W)]
                     mask_id = np.concatenate((mask_id, np.array(ids)))
+
+        if sampling > 0:
+            n_ids = np.floor(len(mask_id) * self.sampling)
+            mask_id = mask_id[:n_ids]
         return mask_id
 
 class DataGenPatches(DataGen):
@@ -152,6 +157,18 @@ class DataGenPatches(DataGen):
             py = np.arange(l_patch//2+1, W - l_patch//2, s_patch)
             pz = np.arange(n)
             mask_id = np.array(np.meshgrid(px, py, pz)).T.reshape(-1,3)
+        else:
+            for i, img in enumerate(self.images_list):
+                image = m.imread(self.path_X+img, mode='L')
+                H, W, *C = image.shape
+                px = np.arange(l_patch//2+1, H - l_patch//2, s_patch)
+                py = np.arange(l_patch//2+1, W - l_patch//2, s_patch)
+                ids = np.array(np.meshgrid(px, py, i)).T.reshape(-1,3)
+                mask_id = np.concatenate((mask_id, np.array(ids)))
+
+        if self.sampling > 0:
+            n_ids = int(len(mask_id) * self.sampling)
+            mask_id = mask_id[:n_ids]
 
         return mask_id
 
@@ -180,6 +197,7 @@ class DataGenPatches(DataGen):
                 y.append(gt[i-hs_patch:i+hs_patch+1, j-hs_patch:j+hs_patch+1])
 
         X = np.asarray(X)
+        X = X.astype('float32')/255.0
         if len(X.shape) == 3:
             X = np.reshape(X, (X.shape[0], X.shape[1], X.shape[2], 1))
         if self.n_outputs == 2:

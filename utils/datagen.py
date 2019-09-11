@@ -176,8 +176,10 @@ class DataGenPatches(DataGen):
         X = []
         y = []
         ind = indices[indices[:,2].argsort()] #sort indices by image index.
-        hl_patch = self.l_patch//2
-        hs_patch = self.s_patch//2
+        hl_patch_beg = self.l_patch//2
+        hl_patch_end = self.l_patch//2 + self.l_patch%2
+        hs_patch_beg = self.s_patch//2
+        hs_patch_end = self.s_patch//2 + self.s_patch%2
         previous_img = -1
         for i,j,id_img in ind:
             if id_img != previous_img:
@@ -192,9 +194,9 @@ class DataGenPatches(DataGen):
 
             H, W, *channels = img.shape
             # If i and j are within the image field
-            if i - hl_patch > 0 and i + hl_patch + 1 < H and j - hl_patch > 0 and j + hl_patch + 1 < W:
-                X.append(img[i-hl_patch:i+hl_patch+1, j-hl_patch:j+hl_patch+1])
-                y.append(gt[i-hs_patch:i+hs_patch+1, j-hs_patch:j+hs_patch+1])
+            if i - hl_patch_beg > 0 and i + hl_patch_end < H and j - hl_patch_beg > 0 and j + hl_patch_end < W:
+                X.append(img[i-hl_patch_beg:i+hl_patch_end, j-hl_patch_beg:j+hl_patch_end])
+                y.append(gt[i-hs_patch_beg:i+hs_patch_end, j-hs_patch_beg:j+hs_patch_end])
 
         X = np.asarray(X)
         X = X.astype('float32')/255.0

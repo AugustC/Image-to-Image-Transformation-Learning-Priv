@@ -2,7 +2,14 @@ import matplotlib.pyplot as plt
 import scipy.misc as m
 import numpy as np
 import os
+from keras.utils import to_categorical
 from scipy import ndimage
+
+def crop_img(img, mult):
+    H, W, *c = img.shape
+    h = H - H%mult
+    w = W - W%mult
+    return img[:h, :w]
 
 def load_images(data_lists, paths, window=-1, mode='RGB'):
     images_names = data_lists['images']
@@ -187,3 +194,10 @@ def preprocess_imgs(func, fn_imgs, dir_imgs, output_dir='processed_imgs/', verbo
         m.imsave(output_dir + fname, processed_img)
 
     return img_names, output_dir
+
+def save_imgs(img_list, img_fn, output_dir='images/'):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    for i, ing in enumerate(img_list):
+        m.imsave((output_dir+img_fn[i], ing[0])
